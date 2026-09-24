@@ -1,7 +1,7 @@
 -- Ventura RSTools : rstools/common.lua (version compacte, code commente dans source/)
-local APP="Ventura RSTools"
-local ROLE=(...)or"standard"
-local LANG=(function()
+APP="Ventura RSTools"
+ROLE=(...)or"standard"
+LANG=(function()
 local file=(ROLE=="bay")and"rstools_bay.txt"or"rstools_config.txt"
 local ok,t=pcall(function()
 if not fs.exists(file)then return nil end
@@ -11,7 +11,7 @@ return textutils.unserialise(c)
 end)
 return(ok and type(t)=="table"and type(t.settings)=="table"and t.settings.lang)or"fr"
 end)()
-local L=(function()
+L=(function()
 if LANG~="en"then return function(s)return s end end
 local EN={}
 local ok,t=pcall(function()
@@ -21,8 +21,8 @@ end)
 if ok and type(t)=="table"then EN=t end
 return function(s)return EN[s]or s end
 end)()
-local VERSION = "4.4.0"
-local CFG={
+VERSION="4.4.1"
+CFG={
 dataFile="rstools_data.txt",
 configFile="rstools_config.txt",
 oldDataFile="rsui_data.txt",
@@ -39,7 +39,7 @@ updateUrl="",
 repoUrl=RSTOOLS_REPO or"https://raw.githubusercontent.com/VOTRE-PSEUDO/rstools/main/",
 updateEvery=3600,
 }
-local DEF={
+DEF={
 theme="sombre",toolbar="haut",scale=0.5,refresh=5,sounds=true,volume=1,
 mainMon=nil,bayMode="slots",bayAuto=false,bayCols=6,bayRows=3,
 fillAlert=24,toastDur=5,tabIcons=true,rounded=true,
@@ -51,7 +51,7 @@ dormant=86400,bootAnim=true,baysEvery=30,backup=false,
 lang="fr",kbSize="grand",mosView="mods",mosColor="trend",
 autoUpdate=false,updateUrl=nil,repoUrl=nil,
 }
-local THEMES={
+THEMES={
 {id="sombre",name=L"Sombre",p={0x0e1117,0x1b212b,0x7c8698,0xe6eaf0,0x2ec4b6}},
 {id="ventura",name="Ventura",p={0x101014,0x1f1f2c,0x8a8aa6,0xf0f0f8,0x9b5cff}},
 {id="nuit",name=L"Nuit bleue",p={0x0b1020,0x18213a,0x7d8bb0,0xe8ecff,0x6c8cff}},
@@ -62,18 +62,18 @@ local THEMES={
 {id="contraste",name=L"Contraste eleve",p={0x000000,0x2a2a2a,0xb8b8b8,0xffffff,0xffd400}},
 {id="cc",name=L"CC d'origine",p=nil},
 }
-local THEME_SLOTS={colors.black,colors.gray,colors.lightGray,colors.white,colors.cyan}
-local T={
+THEME_SLOTS={colors.black,colors.gray,colors.lightGray,colors.white,colors.cyan}
+T={
 bg=colors.black,panel=colors.gray,accent=colors.cyan,
 text=colors.white,dim=colors.lightGray,
 ok=colors.lime,warn=colors.orange,bad=colors.red,energy=colors.yellow,
 }
-local function now()return os.epoch("utc")/1000 end
-local store={
+function now()return os.epoch("utc")/1000 end
+store={
 rules={},maxRules={},histStorage={},histEnergy={},
 bays={},log={},lastMove={},settings={},pins={},widgets={},
 }
-local state={
+state={
 tab="home",data=nil,scroll={},sort="count",search="",filter=nil,
 popup=nil,input=nil,msg=nil,msgTime=0,lastUpdate="--:--:--",
 dirty=false,lastSave=0,lastGraph=0,lastUpdateCheck=0,restart=false,
@@ -83,14 +83,14 @@ autoView="min",logFilter="all",toasts={},toastLog={},stick={},
 kb=false,kbUpper=false,setCat="apparence",
 pool={},iconCache={},countBuf={},noCats={},dataVersion=0,lastChange="--:--",
 }
-local buttons={}
-local function S(k)
+buttons={}
+function S(k)
 local v=store.settings[k]
 if v==nil then v=DEF[k]end
 return v
 end
-local function notify(m)state.msg=m;state.msgTime=os.clock()end
-local function bays()
+function notify(m)state.msg=m;state.msgTime=os.clock()end
+function bays()
 local slots=CFG.baySlots
 local c=state.ctx
 local auto,cols,rows,drives
@@ -113,24 +113,22 @@ end
 end
 return{cols=cols or 6,rows=rows or 3,slots=slots}
 end
-local function bayMap()
+function bayMap()
 local c=state.ctx
 return(c and c.map)or store.bays
 end
-local lastBreath=os.clock()
-local function breathe()
+lastBreath=os.clock()
+function breathe()
 if os.clock()-lastBreath>0.3 then
 os.queueEvent("rstools_breath")
 os.pullEvent("rstools_breath")
 lastBreath=os.clock()
 end
 end
-local loadStore,freeSpace,saveStore,saveData
-local setS,sfx,toast,logEvent
-local toB=colors.toBlit
-local function clamp(v,a,b)return math.max(a,math.min(b,v))end
-local function cut(s,n)s=tostring(s);if n<=0 then return""end return s:sub(1,n)end
-local function fmt(n)
+toB=colors.toBlit
+function clamp(v,a,b)return math.max(a,math.min(b,v))end
+function cut(s,n)s=tostring(s);if n<=0 then return""end return s:sub(1,n)end
+function fmt(n)
 if not n then return"?"end
 local a=math.abs(n)
 if a>=1e9 then return("%.2fG"):format(n/1e9)
@@ -138,52 +136,51 @@ elseif a>=1e6 then return("%.2fM"):format(n/1e6)
 elseif a>=1e3 then return("%.1fk"):format(n/1e3)end
 return tostring(math.floor(n+0.5))
 end
-local function fmtMB(n)
+function fmtMB(n)
 if not n then return"?"end
 if math.abs(n)<1000 then return math.floor(n).."mB"end
 return fmt(n/1000).."B"
 end
-local function fmtSigned(n)return(n>=0 and"+"or"-")..fmt(math.abs(n))end
-local function duration(s)
+function fmtSigned(n)return(n>=0 and"+"or"-")..fmt(math.abs(n))end
+function duration(s)
 s=math.max(0,s)
 if s<60 then return("%ds"):format(math.floor(s))
 elseif s<3600 then return("%dmin"):format(math.floor(s/60))
 elseif s<86400 then return("%gh"):format(math.floor(s/360+0.5)/10)end
 return("%g"..(LANG=="en"and"d"or"j")):format(math.floor(s/8640+0.5)/10)
 end
-local function pct(v)return v.."%"end
-local function pushHist(h,v)
+function pct(v)return v.."%"end
+function pushHist(h,v)
 h[#h+1]=math.floor(clamp(v,0,1)*10000+0.5)/10000
 while#h>CFG.historyLen do table.remove(h,1)end
 end
-local function ratioColor(r)
+function ratioColor(r)
 if r>0.9 then return T.bad elseif r>0.7 then return T.warn end
 return T.ok
 end
-local function camel(s)return(s:gsub("_(%a)",string.upper))end
-local function prettify(id)
+function camel(s)return(s:gsub("_(%a)",string.upper))end
+function prettify(id)
 if not id then return"?"end
 local n=tostring(id):gsub("^[^:]+:",""):gsub("_"," ")
 return n:sub(1,1):upper()..n:sub(2)
 end
-local function cleanName(it)
+function cleanName(it)
 local n=it.displayName
 if type(n)~="string"or n==""then return prettify(it.name)end
 return(n:gsub("^%[(.*)%]$","%1"))
 end
-local function logRatio(v,max)
+function logRatio(v,max)
 if not max or max<=0 then return 0 end
 return math.log(v+1)/math.log(max+1)
 end
-local function isType(n,t)
+function isType(n,t)
 if peripheral.hasType then return peripheral.hasType(n,t)end
 for _,x in ipairs({peripheral.getType(n)})do if x==t then return true end end
 return false
 end
-local mon,monName,win,W,H
-local widgets={}
-local OX,OY=0,0
-local function listMonitors()
+widgets={}
+OX,OY=0,0
+function listMonitors()
 local r={}
 for _,n in ipairs(peripheral.getNames())do
 if isType(n,"monitor")then r[#r+1]=n end
@@ -191,11 +188,11 @@ end
 table.sort(r)
 return r
 end
-local function themeById(id)
+function themeById(id)
 for _,t in ipairs(THEMES)do if t.id==id then return t end end
 return THEMES[1]
 end
-local function applyPalette(w)
+function applyPalette(w)
 local th=themeById(S("theme"))
 for i=0,15 do
 local c=2^i
@@ -205,23 +202,23 @@ if th.p then
 for i,c in ipairs(THEME_SLOTS)do w.setPaletteColor(c,th.p[i])end
 end
 end
-local function releaseMonitor(m)
+function releaseMonitor(m)
 if not m then return end
 pcall(function()
 for i=0,15 do local c=2^i;m.setPaletteColor(c,term.nativePaletteColor(c))end
 m.setBackgroundColor(colors.black);m.clear()
 end)
 end
-local function isWidgetMon(n)
+function isWidgetMon(n)
 local c=store.widgets[n]
 return c and c.type~="aucun"
 end
-local MIN_W,MIN_H=39,19
-local SCALES={0.5,1,1.5,2,2.5,3}
-local function sizeAt(w,h,cur,sc)
+MIN_W,MIN_H=39,19
+SCALES={0.5,1,1.5,2,2.5,3}
+function sizeAt(w,h,cur,sc)
 return math.floor(w*6*cur/(6*sc)),math.floor(h*9*cur/(9*sc))
 end
-local function fittingScales()
+function fittingScales()
 local b=state.base or{w=MIN_W,h=MIN_H}
 local r={}
 for _,sc in ipairs(SCALES)do
@@ -231,7 +228,7 @@ end
 if#r==0 then r[1]=0.5 end
 return r
 end
-local function setupWidgets()
+function setupWidgets()
 for n,w in pairs(widgets)do
 releaseMonitor(w.mon)
 widgets[n]=nil
@@ -250,7 +247,7 @@ end
 end
 end
 end
-local function checkScreens()
+function checkScreens()
 if mon then
 local ok,cw,ch=pcall(mon.getSize)
 if ok and(cw~=W or ch~=H)then W,H=cw,ch;win.reposition(1,1,W,H);state.forceRender=true end
@@ -271,27 +268,27 @@ end
 for n in pairs(widgets)do if not store.widgets[n]then need=true end end
 if need then pcall(setupWidgets);state.forceRender=true end
 end
-local function fill(x,y,w,h,bg)
+function fill(x,y,w,h,bg)
 if w<=0 or h<=0 then return end
 win.setBackgroundColor(bg)
 local s=(" "):rep(w)
 for i=0,h-1 do win.setCursorPos(x,y+i);win.write(s)end
 end
-local function text(x,y,str,fg,bg)
+function text(x,y,str,fg,bg)
 win.setCursorPos(x,y)
 win.setBackgroundColor(bg or T.bg)
 win.setTextColor(fg or T.text)
 win.write(str)
 end
-local function rightText(xEnd,y,str,fg,bg)text(xEnd-#str+1,y,str,fg,bg)end
-local function centerText(x,w,y,str,fg,bg)
+function rightText(xEnd,y,str,fg,bg)text(xEnd-#str+1,y,str,fg,bg)end
+function centerText(x,w,y,str,fg,bg)
 str=cut(str,w)
 text(x+math.floor((w-#str)/2),y,str,fg,bg)
 end
-local function addButton(x1,y1,x2,y2,fn)
+function addButton(x1,y1,x2,y2,fn)
 buttons[#buttons+1]={x1=x1+OX,y1=y1+OY,x2=x2+OX,y2=y2+OY,fn=fn}
 end
-local function withSub(x,y,w,h,fn,...)
+function withSub(x,y,w,h,fn,...)
 local sWin,sW,sH,sOX,sOY=win,W,H,OX,OY
 local sub=window.create(win,x,y-4,w,h+5,false)
 sub.setBackgroundColor(T.bg);sub.clear()
@@ -302,7 +299,7 @@ sub.setVisible(true)
 win,W,H,OX,OY=sWin,sW,sH,sOX,sOY
 if not ok then error(err,0)end
 end
-local function bgAt(x,y)
+function bgAt(x,y)
 if not win.getLine or x<1 or y<1 or x>W or y>H then return nil end
 local ok,_,_,bgs=pcall(win.getLine,y)
 if not ok or type(bgs)~="string"then return nil end
@@ -311,7 +308,7 @@ if c==""then return nil end
 local n=tonumber(c,16)
 return n and 2^n or nil
 end
-local function corner(x,y,which,col,outside)
+function corner(x,y,which,col,outside)
 if not outside or outside==col then return end
 win.setCursorPos(x,y)
 if which=="tl"then win.blit("\129",toB(outside),toB(col))
@@ -321,7 +318,7 @@ elseif which=="br"then win.blit("\159",toB(col),toB(outside))
 elseif which=="l"then win.blit("\145",toB(outside),toB(col))
 elseif which=="r"then win.blit("\157",toB(col),toB(outside))end
 end
-local function roundFill(x,y,w,h,col,colL)
+function roundFill(x,y,w,h,col,colL)
 if not S("rounded")or w<2 then fill(x,y,w,h,col);if colL then fill(x,y,1,h,colL)end;return end
 local oTL,oTR=bgAt(x,y),bgAt(x+w-1,y)
 local oBL,oBR=bgAt(x,y+h-1),bgAt(x+w-1,y+h-1)
@@ -335,28 +332,28 @@ corner(x,y,"tl",cl,oTL);corner(x+w-1,y,"tr",col,oTR)
 corner(x,y+h-1,"bl",cl,oBL);corner(x+w-1,y+h-1,"br",col,oBR)
 end
 end
-local function button(x,y,label,bg,fg,fn)
+function button(x,y,label,bg,fg,fn)
 local w=#label+2
 roundFill(x,y,w,1,bg)
 text(x+1,y,label,fg,bg)
 addButton(x,y,x+w-1,y,fn)
 return w
 end
-local function slimBar(x,y,w,ratio,col,bgc,track)
+function slimBar(x,y,w,ratio,col,bgc,track)
 if w<=0 then return end
 local f=math.floor(clamp(ratio or 0,0,1)*w+0.5)
 win.setCursorPos(x,y)
 win.blit(("\140"):rep(w),toB(col):rep(f)..toB(track or T.bg):rep(w-f),toB(bgc):rep(w))
 end
-local function sectionTitle(x,y,title,extra,x2)
+function sectionTitle(x,y,title,extra,x2)
 x2=x2 or(W-1)
 text(x,y,cut(title:upper(),x2-x+1),T.accent)
 local ex=x+#title+1
 if extra then text(ex,y,cut(extra,x2-ex+1),T.dim);ex=ex+#extra+1 end
 if x2-ex+1>=1 then text(ex,y,("\140"):rep(x2-ex+1),T.panel)end
 end
-local BITS={1,2,4,8,16}
-local function drawPixels(x,y,cw,ch,getpx)
+BITS={1,2,4,8,16}
+function drawPixels(x,y,cw,ch,getpx)
 local px={}
 for cy=0,ch-1 do
 local chars,fgs,bgs={},{},{}
@@ -388,7 +385,7 @@ win.setCursorPos(x,y+cy)
 win.blit(table.concat(chars),table.concat(fgs),table.concat(bgs))
 end
 end
-local function graph(x,y,cw,ch,hist,col,bgc,crest)
+function graph(x,y,cw,ch,hist,col,bgc,crest)
 local pw,ph,n=cw*2,ch*3,#hist
 crest=crest or colors.white
 drawPixels(x,y,cw,ch,function(px,py)
@@ -402,7 +399,7 @@ if fromBottom<hgt then return col end
 return bgc
 end)
 end
-local function vGauge(x,y,cw,ch,ratio,col,bgc)
+function vGauge(x,y,cw,ch,ratio,col,bgc)
 local ph=ch*3
 local filled=math.floor(clamp(ratio,0,1)*ph+0.5)
 drawPixels(x,y,cw,ch,function(_,py)
@@ -410,8 +407,7 @@ if ph-py<filled then return col end
 return bgc
 end)
 end
-local C=colors
-local drawIcon
+C=colors
 ;(function()
 local SHAPES={
 block={"........",".aaaaab.",".abbbbc.",".abbbbc.",".abbbbc.",
@@ -565,7 +561,6 @@ return map[row:sub(col,col)]or bgc
 end)
 end
 end)()
-local DISK_ORDER,diskInfo,readDrives,posName,bayLayout,finishAssign,nextAssign,startAssign,checkAssign,drawDriveTile
 ;(function()
 local DISK_COLORS={
 ["1k"]=C.lightGray,["4k"]=C.lime,["16k"]=C.yellow,["64k"]=C.orange,
@@ -718,12 +713,12 @@ state.popup={kind="drive",name=name,pos=p}
 end)
 end
 end)()
-local function parseVer(v)
+function parseVer(v)
 local a,b,c=tostring(v or""):match("^v?(%d+)%.?(%d*)%.?(%d*)")
 if not a then return nil end
 return{tonumber(a),tonumber(b)or 0,tonumber(c)or 0}
 end
-local function cmpVer(x,y)
+function cmpVer(x,y)
 local a,b=parseVer(x),parseVer(y)
 if not a or not b then return nil end
 for i=1,3 do
@@ -731,7 +726,7 @@ if a[i]~=b[i]then return a[i]<b[i]and-1 or 1 end
 end
 return 0
 end
-local function forecast(hist)
+function forecast(hist)
 local n=#hist
 if n<10 then return nil end
 local m=math.min(n,math.floor(3600/CFG.graphEvery))
@@ -748,7 +743,7 @@ local f={rate=perSec,perHour=perSec*3600}
 if perSec>1e-7 then f.eta=(1-last)/perSec end
 return f
 end
-local function forecastText(f,d)
+function forecastText(f,d)
 if not f then
 if d and not d.capKnown then return L"capacite inconnue",T.dim end
 return L"en calcul (~5 min)",T.dim
@@ -759,7 +754,7 @@ end
 if f.perHour<-1e-4 then return L"en baisse",T.ok end
 return L"stable",T.ok
 end
-local NET={proto="rstools_dc"}
+NET={proto="rstools_dc"}
 function NET.open()
 local n=0
 for _,name in ipairs(peripheral.getNames())do
@@ -775,7 +770,7 @@ function NET.broadcast(msg)
 msg.v,msg.from=VERSION,os.getComputerID()
 return pcall(rednet.broadcast,msg,NET.proto)
 end
-local UPD={installedFile="rstools/installed.txt"}
+UPD={installedFile="rstools/installed.txt"}
 function UPD.normRepo(url)
 if type(url)~="string"or url==""then return nil end
 url=url:gsub("^%s+",""):gsub("%s+$","")
@@ -857,7 +852,6 @@ function UPD.setRole(role)
 if not fs.exists("rstools")then fs.makeDir("rstools")end
 local f=fs.open("rstools/role.txt","w");f.write(role);f.close()
 end
-local drawMosaic
 ;(function()
 local MPAL={colors.blue,colors.purple,colors.green,colors.orange,colors.magenta,colors.brown,
 colors.lightBlue,colors.lime,colors.pink,colors.red,colors.yellow}
@@ -967,7 +961,6 @@ end
 end
 end
 end)()
-local bigWidth,bigText,renderWidgets
 ;(function()
 local FONT={
 ["0"]={"111","101","101","101","111"},["1"]={"010","110","010","010","111"},

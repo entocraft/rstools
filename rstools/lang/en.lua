@@ -1,5 +1,6 @@
 -- Ventura RSTools : dictionnaire anglais (charge seulement si la langue est l'anglais)
 return {
+    ["Correctif : limite de 200 variables locales depassee en mode data center"] = "Fix: 200 local variables limit exceeded in data center mode",
     ["    espace    "] = "    space    ",
     ["  (pas "] = "  (step ",
     ["  \183  max "] = "  \183  max ",

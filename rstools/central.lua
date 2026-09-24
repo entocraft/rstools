@@ -1,6 +1,9 @@
 -- Ventura RSTools : rstools/central.lua (version compacte, code commente dans source/)
-local DC={}
-local CHANGELOG={
+DC={}
+CHANGELOG={
+{"4.4.1",{
+"Correctif : limite de 200 variables locales depassee en mode data center",
+}},
 {"4.4.0",{
 "Data Center Update : des controleurs de baies relies a l'ordinateur central",
 "Chaque controleur gere un ensemble de baies (jusqu'a 3x6) et ses propres ecrans",
@@ -99,9 +102,9 @@ local CHANGELOG={
 "Detection d'anomalies, sons d'interface, mise a jour auto",
 }},
 }
-local bridge=peripheral.find("rsBridge")or peripheral.find("rs_bridge")
+bridge=peripheral.find("rsBridge")or peripheral.find("rs_bridge")
 if not bridge then error(L"Aucun RS Bridge trouve (Advanced Peripherals requis)",0)end
-local Snap={ns={},nsIdx={},ids={},codes={},idx={},s={},last={}}
+Snap={ns={},nsIdx={},ids={},codes={},idx={},s={},last={}}
 function Snap.reset()
 Snap.ns,Snap.nsIdx,Snap.ids,Snap.codes,Snap.idx={},{},{},{},{}
 Snap.s,Snap.last,Snap.refCache,Snap.serCache={},{},nil,{}
@@ -355,8 +358,7 @@ for _,p in ipairs({prog..".bak","rstools.lua.bak","rsui.lua.bak"})do
 if fs.exists(p)then pcall(fs.delete,p)end
 end
 end
-local lastErr
-local function call(...)
+function call(...)
 for _,name in ipairs({...})do
 if bridge[name]then
 local ok,res,err=pcall(bridge[name])
@@ -365,7 +367,7 @@ lastErr=name..": "..tostring(ok and err or res)
 end
 end
 end
-local function setupMain()
+function setupMain()
 local mons=listMonitors()
 local want,name=S("mainMon"),nil
 for _,n in ipairs(mons)do if n==want then name=n end end
@@ -405,7 +407,7 @@ end
 win=window.create(mon,1,1,W,H,true)
 applyPalette(win)
 end
-local SOUNDS={
+SOUNDS={
 click={{"hat",0.5,12}},
 ok={{"bell",0.8,12},{"bell",0.8,19}},
 err={{"bass",1,4}},
@@ -440,11 +442,11 @@ LOGT[#LOGT+1]={t=math.floor(now()),c=cat,m=msg,l=lvl or 0}
 while#LOGT>CFG.logMax do table.remove(LOGT,1)end
 state.dirty=true
 end
-local function isPinned(id)
+function isPinned(id)
 for _,p in ipairs(store.pins)do if p==id then return true end end
 return false
 end
-local function togglePin(it)
+function togglePin(it)
 for i,p in ipairs(store.pins)do
 if p==it.id then
 table.remove(store.pins,i);state.fsBust=(state.fsBust or 0)+1;pcall(saveStore)
@@ -457,7 +459,6 @@ state.fsBust=(state.fsBust or 0)+1
 pcall(saveStore)
 notify(L"Epingle : "..it.name)
 end
-local CATS,tagList,catsOf
 ;(function()
 CATS={
 {L"Minerais",{"ores","raw_materials"}},
@@ -500,7 +501,7 @@ end
 return r
 end
 end)()
-local function parseDisks(raw)
+function parseDisks(raw)
 if type(raw)~="table"then return nil end
 local out={}
 for i,dk in ipairs(raw)do
@@ -518,7 +519,7 @@ end
 end
 return out
 end
-local function collectRes(listFns,usedFns,totalFns)
+function collectRes(listFns,usedFns,totalFns)
 local raw=call(table.unpack(listFns))
 local list,total={},0
 if type(raw)=="table"then
@@ -533,10 +534,10 @@ end
 return{list=list,total=total,used=call(table.unpack(usedFns))or total,
 max=call(table.unpack(totalFns))}
 end
-local function present(res)
+function present(res)
 return res and((res.max and res.max>0)or#res.list>0)
 end
-local function readItemsOneByOne()
+function readItemsOneByOne()
 local set,ids={},{}
 local function add(id)if id and not set[id]then set[id]=true;ids[#ids+1]=id end end
 if state.lastGood then for _,it in ipairs(state.lastGood.items)do add(it.id)end end
@@ -564,7 +565,7 @@ parallel.waitForAll(table.unpack(tasks,i,math.min(#tasks,i+39)))
 end
 return out,blocked
 end
-local function poolItem(it,stamp)
+function poolItem(it,stamp)
 local id=it.name or"?"
 local e=state.pool[id]
 if not e then
@@ -580,7 +581,7 @@ end
 e.seen,e.blocked=stamp,nil
 return e
 end
-local function collect()
+function collect()
 local stamp=now()
 local hash=0
 local raw=call("getItems","listItems")
@@ -651,7 +652,7 @@ chems=collectRes({"getChemicals","listChemicals","getGases","listGases"},
 {"getUsedChemicalStorage"},{"getTotalChemicalStorage"}),
 }
 end
-local function passesFilter(it)
+function passesFilter(it)
 local f=state.filter
 if not f then return true end
 if f.kind=="dormant"then return it.dormant end
@@ -660,7 +661,7 @@ if f.kind=="mod"then return it.mod==f.key end
 if f.kind=="pinned"then return isPinned(it.id)end
 return true
 end
-local function filterSort(list,useFilter)
+function filterSort(list,useFilter)
 local f=state.filter
 local key=state.search.."|"..state.sort.."|"..tostring(useFilter).."|"
 ..(f and(f.kind..":"..tostring(f.key))or"").."|"..(state.fsBust or 0)
@@ -684,18 +685,18 @@ end
 state.fsCache[list]={key=key,res=res}
 return res
 end
-local function countsOf(d)
+function countsOf(d)
 local c=state.countBuf
 for k in pairs(c)do c[k]=nil end
 for _,it in ipairs(d.items)do c[it.id]=(c[it.id]or 0)+it.count;breathe()end
 return c
 end
-local function takeSnapshot(cur)
+function takeSnapshot(cur)
 Snap.add(now(),cur)
 while Snap.count()>CFG.snapKeep do Snap.dropOldest()end
 state.dirty=true
 end
-local function computeTrends(d,cur)
+function computeTrends(d,cur)
 if Snap.count()==0 then return{ready=false,span=0,list={},byId={}}end
 local refT,refC=Snap.ref(now()-CFG.trendWindow)
 local span=now()-refT
@@ -718,7 +719,7 @@ if cur[id]==nil and old~=0 then add(id,-old,0)end
 end
 return tr
 end
-local function updateDormancy(d,cur)
+function updateDormancy(d,cur)
 local t,LM=now(),store.lastMove
 for _,it in ipairs(d.items)do
 if not it.blocked then
@@ -737,7 +738,7 @@ if it.dormant then nd=nd+1 end
 end
 d.dormantCount=nd
 end
-local function detectAnomalies(d,cur)
+function detectAnomalies(d,cur)
 local t,R,window=now(),state.recent,S("anomWindow")
 if#R==0 or t-R[#R].t>=30 then
 local copy={}
@@ -762,13 +763,13 @@ logEvent("anomalie",msg,2)
 end
 end
 end
-local function findRule(list,id)
+function findRule(list,id)
 for i,r in ipairs(list)do if r.id==id then return r,i end end
 end
-local function stepOf(it)
+function stepOf(it)
 return(it and it.maxStack and it.maxStack>=1)and it.maxStack or 64
 end
-local function addRule(kind,it)
+function addRule(kind,it)
 local list=kind=="max"and store.maxRules or store.rules
 if findRule(list,it.id)then return end
 local step=stepOf(it)
@@ -780,7 +781,7 @@ pcall(saveStore)
 logEvent("stock",(L"Stock %s ajoute : %s"):format(kind=="max"and"max"or"min",it.name),0)
 notify(L"Stock "..(kind=="max"and"max"or"min")..L" ajoute : "..it.name)
 end
-local function removeRule(kind,id)
+function removeRule(kind,id)
 local list=kind=="max"and store.maxRules or store.rules
 local r,i=findRule(list,id)
 if i then
@@ -790,12 +791,12 @@ logEvent("stock",(L"Stock %s retire : %s"):format(kind,r.name),0)
 end
 if kind=="max"then state.maxStatus[id]=nil else state.autoStatus[id]=nil end
 end
-local function isCrafting(id)
+function isCrafting(id)
 if not bridge.isItemCrafting then return nil end
 local ok,b=pcall(bridge.isItemCrafting,{name=id})
 if ok then return b and true or false end
 end
-local function craft(it,n)
+function craft(it,n)
 local ok,res,err=pcall(bridge.craftItem,{name=it.id,count=n})
 if ok and res then
 state.launched[it.id]=now()
@@ -809,7 +810,7 @@ toast(L"Craft impossible : "..it.name.." ("..e..")","err")
 sfx("err")
 end
 end
-local function runAuto(d)
+function runAuto(d)
 for _,r in ipairs(store.rules)do
 local it=d.byId[r.id]
 local count=it and it.count or 0
@@ -837,8 +838,8 @@ end
 state.autoStatus[r.id]=st
 end
 end
-local DIRS={"up","down","north","south","east","west"}
-local function exportTo(id,n)
+DIRS={"up","down","north","south","east","west"}
+function exportTo(id,n)
 local target=S("trash")
 if target=="aucune"then return nil,L"aucune poubelle (Reglages)"end
 local isDir=false
@@ -855,7 +856,7 @@ if not ok then return nil,tostring(res)end
 if not res or res==0 then return nil,tostring(err or L"rien exporte (poubelle pleine ?)")end
 return tonumber(res)or n
 end
-local function runMax(d)
+function runMax(d)
 for _,r in ipairs(store.maxRules)do
 local it=d.byId[r.id]
 local count=it and it.count or 0
@@ -881,7 +882,7 @@ end
 state.maxStatus[r.id]=st
 end
 end
-local function collectRunning(d)
+function collectRunning(d)
 local out={}
 local tasks=call("getCraftingTasks","getCraftingJobs","listCraftingTasks")
 if type(tasks)=="table"then
@@ -903,7 +904,7 @@ elseif busy or now()-t0<120 then out[#out+1]={id=id,name=it and it.name or prett
 end
 return out
 end
-local function detectFinished(d,running)
+function detectFinished(d,running)
 local cur={}
 for _,e in ipairs(running)do cur[e.id]=e.name end
 for id,name in pairs(state.prevRunning)do
@@ -915,7 +916,7 @@ end
 end
 state.prevRunning=cur
 end
-local function computeAlerts(d)
+function computeAlerts(d)
 local A={}
 if d.online==false then A[#A+1]={key="offline",msg=L"Reseau RS hors ligne",lvl=2}end
 if d.readError then A[#A+1]={key="readerr",msg=L"Lecture des items impossible : "..d.readError,lvl=2}end
@@ -957,7 +958,7 @@ end
 if DC.alerts then DC.alerts(A)end
 return A
 end
-local function updateAlerts(d)
+function updateAlerts(d)
 local A=computeAlerts(d)
 local keys,grave={},false
 for _,a in ipairs(A)do
@@ -978,7 +979,7 @@ state.alertKeys,state.alerts=keys,A
 local side=S("redstoneSide")
 if side~="aucune"then pcall(redstone.setOutput,side,#A>0)end
 end
-local function logBayChanges(drives)
+function logBayChanges(drives)
 if not drives then return end
 local prev,snap=state.prevDrives,{}
 for n,sl in pairs(drives)do
@@ -1008,8 +1009,8 @@ end
 end
 end
 end
-local function normUrl(url)return UPD.normRepo(url)end
-local function checkUpdate(manual)
+function normUrl(url)return UPD.normRepo(url)end
+function checkUpdate(manual)
 state.lastUpdateCheck=now()
 local n,err,m=UPD.run(ROLE,LANG,false)
 if not n then
@@ -1026,7 +1027,7 @@ notify(L"Mise a jour installee, redemarrage...")
 if DC.afterUpdate then pcall(DC.afterUpdate)end
 state.restart=true
 end
-local function card(x,y,w,label,value,col,ratio,sub,fn)
+function card(x,y,w,label,value,col,ratio,sub,fn)
 roundFill(x,y,w,3,T.panel,col)
 text(x+2,y,cut(label,w-3),T.dim,T.panel)
 text(x+2,y+1,cut(value,w-3),T.text,T.panel)
@@ -1034,7 +1035,7 @@ if ratio then slimBar(x+2,y+2,w-4,ratio,col,T.panel,T.bg)
 elseif sub then text(x+2,y+2,cut(sub,w-3),T.dim,T.panel)end
 if fn then addButton(x,y,x+w-1,y+2,fn)end
 end
-local function cardGrid(y,cards,maxCols)
+function cardGrid(y,cards,maxCols)
 local cols=clamp(math.floor((W-2)/16),1,maxCols)
 local cw=math.floor((W-2)/cols)
 for i,c in ipairs(cards)do
@@ -1044,7 +1045,7 @@ card(cx,cy,cw-1,c[1],c[2],c[3],c[4],c[5],c[6])
 end
 return y+math.ceil(#cards/cols)*4
 end
-local function listView(key,items,y1,y2,rowH,renderRow,stickBottom)
+function listView(key,items,y1,y2,rowH,renderRow,stickBottom)
 local h=y2-y1+1
 if h<1 then return end
 local rows=math.max(1,math.floor(h/rowH))
@@ -1077,7 +1078,7 @@ state.scroll[key]=math.min(maxS,s+rows);state.stick[key]=(s+rows>=maxS)
 end)
 end
 end
-local function itemRow(maxCount,opt)
+function itemRow(maxCount,opt)
 opt=opt or{}
 local f=opt.fmt or fmt
 local kind=opt.kind or"item"
@@ -1113,7 +1114,7 @@ addButton(2,y,x2,y+2,function()state.popup={kind="item",id=it.id}end)
 end
 end
 end
-local function searchBar(y)
+function searchBar(y)
 local x2=W-2
 fill(2,y,x2-1,1,T.panel)
 text(3,y,"\16",T.accent,T.panel)
@@ -1135,12 +1136,12 @@ if avail>0 then text(5,y,q:sub(-avail),T.text,T.panel)end
 button(bx-4,y,"x",T.bad,T.text,function()state.search="";state.scroll={}end)
 end
 end
-local function maxOf(list)
+function maxOf(list)
 local m=0
 for _,it in ipairs(list)do if it.count>m then m=it.count end end
 return m
 end
-local pages={}
+pages={}
 ;(function()
 pages.home=function(d)
 local y=5
@@ -1918,7 +1919,7 @@ rightText(W-1,5,L"sauvegarde auto",T.dim)
 end
 DC.settingRow,DC.widgetEntries=settingRow,widgetEntries
 end)()
-local function trendList(x,w,y1,y2,title,list,col)
+function trendList(x,w,y1,y2,title,list,col)
 sectionTitle(x,y1,title,tostring(#list),x+w-1)
 local rows=y2-y1
 for i=1,math.min(#list,rows)do
@@ -2038,7 +2039,6 @@ local n=pos[p]
 drawDriveTile(p,n,n and drives[n],2+c*cw,gy+r*rowH,cw-1,perRow)
 end
 end
-local itemPopup,alertsPopup,filtersPopup,drivePopup,wrap,newsPopup
 ;(function()
 local function popupFrame(title,pw,ph,titleCol,anchor)
 addButton(1,1,W,H,function()state.popup=nil end)
@@ -2283,7 +2283,6 @@ end
 button(px+math.floor((pw-9)/2),py+ph-2,L"Compris",T.accent,T.bg,function()state.popup=nil end)
 end
 end)()
-local tabsList,layout,drawTabs,drawHeader,drawFooter,drawToasts
 ;(function()
 function tabsList(d)
 local t={{"home",L"Accueil"},{"items",L"Items"}}
@@ -2446,7 +2445,6 @@ y=top-1
 end
 end
 end)()
-local drawKeyboard
 ;(function()
 local KB_ROWS=LANG=="en"
 and{"1234567890","qwertyuiop","asdfghjkl-","zxcvbnm._/:"}
@@ -2522,7 +2520,7 @@ x=x+w+1
 end
 end
 end)()
-local function render()
+function render()
 buttons={}
 OX,OY=0,0
 win.setVisible(false)
@@ -2579,7 +2577,7 @@ pcall(drawToasts)
 win.setVisible(true)
 renderWidgets(d)
 end
-local function pruneCaches()
+function pruneCaches()
 local c,t=os.clock(),now()
 for k,ic in pairs(state.iconCache)do if c-(ic.used or 0)>600 then state.iconCache[k]=nil end end
 for id,e in pairs(state.pool)do if t-(e.seen or 0)>600 then state.pool[id]=nil end end
@@ -2587,7 +2585,7 @@ Snap.serCache={}
 state.fsCache,state.mosCache=nil,nil
 state.lastPrune=t
 end
-local function refresh()
+function refresh()
 local ok,d=pcall(collect)
 if not ok then toast(L"Erreur de lecture : "..tostring(d),"err");return end
 if d.readError then
@@ -2700,7 +2698,7 @@ local okS,errS=pcall(saveData)
 if not okS then toast(L"Erreur de sauvegarde : "..tostring(errS),"err")end
 end
 end
-local function handleKey(e)
+function handleKey(e)
 if state.input then
 local inp=state.input
 if e[1]=="char"or e[1]=="paste"then inp.buf=inp.buf..e[2]
@@ -2718,7 +2716,6 @@ if e[2]==keys.backspace then state.search=state.search:sub(1,-2);state.scroll={}
 elseif e[2]==keys.enter then state.search="";state.scroll={}end
 end
 end
-local drawBoot,bootNotes,bootAnimation
 ;(function()
 local LOGO={
 ".......aa.......",".....aaaaaa.....","...aaaaaaaaaa...",".aaaaaaaaaaaaaa.",
@@ -2796,7 +2793,7 @@ drawBoot(0,L"Demarrage...")
 return true
 end
 end)()
-local function dataLoop()
+function dataLoop()
 local nextRefresh=now()+S("refresh")
 while not state.restart do
 sleep(1)
@@ -2822,7 +2819,7 @@ end
 end
 end
 end
-local function uiLoop()
+function uiLoop()
 checkScreens()
 render()
 state.lastClock=os.date("%H:%M")
@@ -2869,7 +2866,7 @@ state.renders=(state.renders or 0)+1
 end
 end
 end
-local function main()
+function main()
 term.clear();term.setCursorPos(1,1)
 local hadSave=fs.exists(CFG.dataFile)or fs.exists(CFG.oldDataFile)
 local okL,errL=pcall(loadStore)

@@ -1,5 +1,5 @@
 -- Ventura RSTools : rstools/bay.lua (version compacte, code commente dans source/)
-local BAY={file="rstools_bay.txt"}
+BAY={file="rstools_bay.txt"}
 ;(function()
 local conf={settings={},widgets={},bays={},grid={auto=true,cols=6,rows=3}}
 local function loadConf()

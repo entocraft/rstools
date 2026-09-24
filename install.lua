@@ -1,5 +1,5 @@
 -- Ventura RSTools : INSTALLATEUR
---   wget run https://raw.githubusercontent.com/<pseudo>/rstools/main/install.lua
+--   wget run https://raw.githubusercontent.com/entocraft/rstools/main/install.lua
 -- Arguments (installation automatique) : install <role> [id du central] [langue] [depot]
 --   role : standard | central | bay        install remote : installer sur d'autres ordinateurs
 

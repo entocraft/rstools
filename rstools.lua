@@ -2,7 +2,7 @@
 -- Assemble les fichiers du dossier rstools/ selon le role de cet ordinateur, puis lance le programme.
 -- Si des fichiers manquent (premiere installation, ancienne version), il les telecharge depuis le depot.
 
-local VERSION = "4.4.0"
+local VERSION = "4.4.1"
 -- depot GitHub (adresse "raw") : a remplacer par le tien
 local REPO = "https://raw.githubusercontent.com/entocraft/rstools/main/"
 
@@ -69,6 +69,9 @@ function RSTOOLS_MAPERR(msg)
   end))
 end
 
-local fn, err = load(table.concat(parts, "\n"), "=rstools", "t", _ENV)
+-- environnement prive : les variables partagees entre fichiers y vivent au lieu d'etre des
+-- "local" du programme principal (CC:Tweaked limite a 200 le total de locales imbriquees)
+local ENV = setmetatable({}, { __index = _ENV })
+local fn, err = load(table.concat(parts, "\n"), "=rstools", "t", ENV)
 if not fn then error(RSTOOLS_MAPERR(err), 0) end
 fn(role)
