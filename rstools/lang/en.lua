@@ -1,5 +1,16 @@
 -- Ventura RSTools : dictionnaire anglais (charge seulement si la langue est l'anglais)
 return {
+    ["Data center : le central n'a plus besoin de RS Bridge, le stock est lu par les controleurs de baies"] = "Data center: the central computer no longer needs an RS Bridge, stock is read by the bay controllers",
+    ["Chaque controleur avec un RS Bridge envoie son stock, le central additionne les reseaux"] = "Each controller with an RS Bridge sends its stock, the central computer adds up the networks",
+    ["Crafts et evacuations envoyes au controleur qui gere l'item"] = "Crafts and removals are sent to the controller that holds the item",
+    ["en attente du stock des controleurs de baies"] = "waiting for stock from the bay controllers",
+    ["aucun controleur avec RS Bridge"] = "no controller with an RS Bridge",
+    ["item absent des controleurs"] = "item not found on the controllers",
+    ["Evacuation impossible : %s (%s)"] = "Removal failed: %s (%s)",
+    ["aucun RS Bridge sur ce controleur"] = "no RS Bridge on this controller",
+    [" absent"] = " missing",
+    ["RS Bridge : stock envoye au central"] = "RS Bridge: stock sent to the central computer",
+    ["Pas de RS Bridge : baies seulement"] = "No RS Bridge: bays only",
     ["Correctif : limite de 200 variables locales depassee en mode data center"] = "Fix: 200 local variables limit exceeded in data center mode",
     ["    espace    "] = "    space    ",
     ["  (pas "] = "  (step ",

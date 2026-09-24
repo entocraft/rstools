@@ -1,6 +1,11 @@
 -- Ventura RSTools : rstools/central.lua (version compacte, code commente dans source/)
 DC={}
 CHANGELOG={
+{"4.5.0",{
+"Data center : le central n'a plus besoin de RS Bridge, le stock est lu par les controleurs de baies",
+"Chaque controleur avec un RS Bridge envoie son stock, le central additionne les reseaux",
+"Crafts et evacuations envoyes au controleur qui gere l'item",
+}},
 {"4.4.1",{
 "Correctif : limite de 200 variables locales depassee en mode data center",
 }},
@@ -103,7 +108,7 @@ CHANGELOG={
 }},
 }
 bridge=peripheral.find("rsBridge")or peripheral.find("rs_bridge")
-if not bridge then error(L"Aucun RS Bridge trouve (Advanced Peripherals requis)",0)end
+if not bridge and ROLE~="central"then error(L"Aucun RS Bridge trouve (Advanced Peripherals requis)",0)end
 Snap={ns={},nsIdx={},ids={},codes={},idx={},s={},last={}}
 function Snap.reset()
 Snap.ns,Snap.nsIdx,Snap.ids,Snap.codes,Snap.idx={},{},{},{},{}

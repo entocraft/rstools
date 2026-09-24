@@ -2,7 +2,7 @@
 -- Assemble les fichiers du dossier rstools/ selon le role de cet ordinateur, puis lance le programme.
 -- Si des fichiers manquent (premiere installation, ancienne version), il les telecharge depuis le depot.
 
-local VERSION = "4.4.1"
+local VERSION = "4.5.0"
 -- depot GitHub (adresse "raw") : a remplacer par le tien
 local REPO = "https://raw.githubusercontent.com/entocraft/rstools/main/"
 

@@ -94,6 +94,76 @@ state.redraw=true
 os.queueEvent("rstools_bay")
 end
 end
+local bridge
+local function findBridge()
+bridge=peripheral.find("rsBridge")or peripheral.find("rs_bridge")
+return bridge
+end
+local function bcall(...)
+for _,n in ipairs({...})do
+if bridge[n]then
+local ok,r=pcall(bridge[n])
+if ok and r~=nil then return r end
+end
+end
+end
+local function slim(raw)
+if type(raw)~="table"then return nil end
+local out={}
+for _,it in ipairs(raw)do
+if type(it)=="table"and it.name then
+out[#out+1]={name=it.name,displayName=it.displayName,count=it.count or it.amount or 0,
+tags=it.tags,maxStackSize=it.maxStackSize,isCraftable=it.isCraftable}
+end
+end
+return out
+end
+local function readStock()
+if not bridge and not findBridge()then return nil end
+local raw=bcall("getItems","listItems")
+if raw==nil and bridge.getItems then
+local ok,r=pcall(bridge.getItems,{})
+if ok and type(r)=="table"then raw=r end
+end
+if raw==nil then bridge=nil;return nil end
+local crafting={}
+if bridge.isItemCrafting then
+for _,id in ipairs(conf.watch or{})do
+local ok,b=pcall(bridge.isItemCrafting,{name=id})
+if ok and b then crafting[id]=true end
+end
+end
+return{
+items=slim(raw),crafts=slim(bcall("getCraftableItems","listCraftableItems")),
+used=bcall("getUsedItemStorage"),max=bcall("getTotalItemStorage","getMaxItemDiskStorage"),
+energy=bcall("getStoredEnergy","getEnergyStorage"),maxEnergy=bcall("getEnergyCapacity","getMaxEnergyStorage"),
+usage=bcall("getEnergyUsage"),online=bcall("isOnline","isConnected"),
+fluids=slim(bcall("getFluids","listFluids")),fUsed=bcall("getUsedFluidStorage"),
+fMax=bcall("getTotalFluidStorage","getMaxFluidDiskStorage"),crafting=crafting,
+}
+end
+local function runCmd(c,a)
+if type(a)~="table"then return end
+if not bridge and not findBridge()then
+toCentral({t="result",kind=c,ok=false,name=a.name,err=L"aucun RS Bridge sur ce controleur"})
+return
+end
+local ok,res,err
+if c=="craft"then
+ok,res,err=pcall(bridge.craftItem,{name=a.name,count=a.count})
+else
+local fn=bridge[a.fn]
+if not fn then
+ok,res,err=true,nil,a.fn..L" absent"
+else
+ok,res,err=pcall(fn,{name=a.name,count=a.count},a.target)
+if ok and res==0 then res=nil end
+end
+end
+toCentral({t="result",kind=c,ok=ok and res and true or false,name=a.name,count=a.count,
+err=not(ok and res)and tostring(ok and(err or L"ressources ?")or res)or nil})
+state.stockNow=true
+end
 local function readNow()
 state.drivesCache=readDrives()or{}
 if state.ctx then state.ctx.drives=state.drivesCache end
@@ -110,6 +180,7 @@ term.setTextColor(central and colors.lime or colors.orange)
 print(central and(L"Central : #"..central)or L"Recherche de l'ordinateur central...")
 term.setTextColor(colors.lightGray)
 print(nd..L" drive(s)  -  "..nw..L" ecran(s) avec widget")
+print(bridge and L"RS Bridge : stock envoye au central"or L"Pas de RS Bridge : baies seulement")
 print("")
 print(L"Reglages : depuis l'ordinateur central (onglet Data center).")
 print(L"Ctrl+T pour arreter.")
@@ -136,10 +207,11 @@ if msg.t=="central"and(central==nil or central==id)then
 if central~=id then central=id;conf.central=id;pcall(saveConf);termInfo()end
 toCentral(status("hello"))
 sendDrives(true)
+state.stockNow=true
 elseif id==central then
 if msg.t=="config"and type(msg.conf)=="table"then
 local oldLang=(conf.settings or{}).lang or"fr"
-for _,k in ipairs({"label","grid","bays","widgets","settings"})do conf[k]=msg.conf[k]end
+for _,k in ipairs({"label","grid","bays","widgets","settings","watch"})do conf[k]=msg.conf[k]end
 pcall(saveConf)
 applyConf()
 pcall(setupWidgets)
@@ -161,6 +233,7 @@ elseif c=="fast"then state.fast=true
 elseif c=="slow"then state.fast=false;state.assignPos=nil;state.redraw=true
 elseif c=="read"then state.forceRead=true
 elseif c=="forget"then central=nil;conf.central=nil;pcall(saveConf);termInfo()
+elseif c=="craft"or c=="export"then runCmd(c,msg.arg)
 end
 end
 end
@@ -193,6 +266,19 @@ end
 sleep(1)
 end
 end
+local function stockLoop()
+local nextRead,had=0,nil
+while not state.restart do
+if central and(state.stockNow or now()>=nextRead)then
+state.stockNow=false
+local st=readStock()
+if st then toCentral({t="stock",s=st})end
+if(st~=nil)~=had then had=st~=nil;termInfo()end
+nextRead=now()+math.max(S("refresh")or 5,5)
+end
+sleep(1)
+end
+end
 local function uiLoop()
 local tick=os.startTimer(1)
 local lastClock=os.date("%H:%M")
@@ -220,8 +306,9 @@ central=conf.central
 applyConf()
 readNow()
 pcall(setupWidgets)
+findBridge()
 termInfo()
-parallel.waitForAny(netLoop,driveLoop,uiLoop)
+parallel.waitForAny(netLoop,driveLoop,stockLoop,uiLoop)
 end
 end)()
 state.start=function()

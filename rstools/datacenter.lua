@@ -3,6 +3,123 @@ do end;(function()
 local run={}
 state.dcRun=run
 local OFFLINE=45
+local localBridge=bridge
+local function stocks()
+local r={}
+for _,id in ipairs(DC.ids())do
+local st=run[id]and run[id].stock
+if st then r[#r+1]={id=id,s=st}end
+end
+return r
+end
+function DC.bayStock()return#stocks()>0 end
+local WAIT=L"en attente du stock des controleurs de baies"
+local function sum(key,m)
+return function()
+local list=stocks()
+if#list==0 then
+if localBridge and localBridge[m]then return localBridge[m]()end
+return nil,WAIT
+end
+local t,any=0,false
+for _,e in ipairs(list)do
+local v=tonumber(e.s[key])
+if v then t,any=t+v,true end
+end
+if any then return t end
+end
+end
+local function merge(key,m)
+return function(...)
+local list=stocks()
+if#list==0 then
+if localBridge and localBridge[m]then return localBridge[m](...)end
+return nil,WAIT
+end
+local out,idx={},{}
+for _,e in ipairs(list)do
+for _,it in ipairs(e.s[key]or{})do
+local o=idx[it.name]
+if o then
+o.count=(o.count or 0)+(it.count or 0)
+o.isCraftable=o.isCraftable or it.isCraftable
+else
+o={}
+for k,v in pairs(it)do o[k]=v end
+idx[it.name]=o
+out[#out+1]=o
+end
+end
+end
+return out
+end
+end
+local function owner(name,craft)
+local best,bestN
+for _,e in ipairs(stocks())do
+if craft then
+for _,it in ipairs(e.s.crafts or{})do if it.name==name then return e.id end end
+end
+local n=0
+for _,it in ipairs(e.s.items or{})do if it.name==name then n=it.count or 0;break end end
+if not best or n>bestN then best,bestN=e.id,n end
+end
+return best,bestN or 0
+end
+local proxy={
+getItems=merge("items","getItems"),getCraftableItems=merge("crafts","getCraftableItems"),
+getFluids=merge("fluids","getFluids"),
+getUsedItemStorage=sum("used","getUsedItemStorage"),getTotalItemStorage=sum("max","getTotalItemStorage"),
+getStoredEnergy=sum("energy","getStoredEnergy"),getEnergyCapacity=sum("maxEnergy","getEnergyCapacity"),
+getEnergyUsage=sum("usage","getEnergyUsage"),
+getUsedFluidStorage=sum("fUsed","getUsedFluidStorage"),getTotalFluidStorage=sum("fMax","getTotalFluidStorage"),
+}
+function proxy.isOnline()
+local list=stocks()
+if#list==0 then
+if localBridge and localBridge.isOnline then return localBridge.isOnline()end
+return nil,WAIT
+end
+for _,e in ipairs(list)do if e.s.online==false then return false end end
+return true
+end
+function proxy.isItemCrafting(f)
+local list=stocks()
+if#list==0 then
+if localBridge and localBridge.isItemCrafting then return localBridge.isItemCrafting(f)end
+return false
+end
+for _,e in ipairs(list)do if e.s.crafting and e.s.crafting[f.name]then return true end end
+return false
+end
+function proxy.craftItem(f)
+if not DC.bayStock()then
+if localBridge then return localBridge.craftItem(f)end
+return nil,WAIT
+end
+local id=owner(f.name,true)
+if not id then return nil,L"aucun controleur avec RS Bridge"end
+DC.cmd(id,"craft",{name=f.name,count=f.count})
+return true
+end
+local function exporter(fn)
+return function(f,target)
+if not DC.bayStock()then
+if localBridge and localBridge[fn]then return localBridge[fn](f,target)end
+return nil,WAIT
+end
+local id,n=owner(f.name,false)
+if not id or n<=0 then return 0,L"item absent des controleurs"end
+local c=math.min(f.count or n,n)
+DC.cmd(id,"export",{fn=fn,name=f.name,count=c,target=target})
+return c
+end
+end
+proxy.exportItem=exporter("exportItem")
+proxy.exportItemToPeripheral=exporter("exportItemToPeripheral")
+bridge=setmetatable(proxy,{__index=function(_,k)
+if localBridge and not DC.bayStock()then return localBridge[k]end
+end})
 local function ctrls()return store.controllers end
 local function fmtKo(b)
 b=b or 0
@@ -36,12 +153,18 @@ c.bays=c.bays or{}
 c.grid=c.grid or{auto=true,cols=6,rows=3}
 return{id=id,drives=(run[id]and run[id].drives)or{},map=c.bays,grid=c.grid}
 end
+local function watchList()
+local w={}
+for _,r in ipairs(store.rules)do w[#w+1]=r.id end
+return w
+end
 local function confFor(id)
 local c=ctrls()[id]
 return{
 label=c.label,grid=c.grid,bays=c.bays or{},widgets=c.widgets or{},
 settings={theme=S("theme"),lang=S("lang"),rounded=S("rounded"),bayMode=S("bayMode"),
-baysEvery=S("baysEvery"),repoUrl=S("repoUrl")},
+baysEvery=S("baysEvery"),repoUrl=S("repoUrl"),refresh=S("refresh")},
+watch=watchList(),
 }
 end
 function DC.pushConfig(id)if ctrls()[id]then NET.send(id,{t="config",conf=confFor(id)})end end
@@ -168,6 +291,19 @@ state.ctx=nil
 if state.assign and state.assign.pos~=before then DC.sendData(id)end
 end
 os.queueEvent("rstools_data")
+elseif t=="stock"then
+local r=run[id]or{}
+local first=not DC.bayStock()
+r.seen,r.stock=now(),type(msg.s)=="table"and msg.s or nil
+run[id]=r
+if first and DC.bayStock()then state.forceRefresh=true end
+elseif t=="result"then
+if not msg.ok then
+local what=msg.kind=="craft"and L"Craft impossible : %s (%s)"or L"Evacuation impossible : %s (%s)"
+local e=what:format(tostring(msg.name),tostring(msg.err or"?"))
+logEvent(msg.kind=="craft"and"craft"or"stock",DC.label(id).." : "..e,1)
+toast(e,"err")
+end
 elseif t=="discover"then
 NET.send(id,{t="central"})
 end
