@@ -351,17 +351,36 @@ local view=state.bayView
 if view~="local"and not ctrls()[view]then view=nil end
 if not view or(view=="local"and not hasLocal)then view=hasLocal and"local"or ids[1]end
 state.bayView=view
-local x=2
-if hasLocal then
-local act=view=="local"
-x=x+button(x,5,L"Local",act and T.accent or T.panel,act and T.bg or T.dim,function()state.bayView="local"end)+1
+local views={}
+if hasLocal then views[1]="local"end
+for _,id in ipairs(ids)do views[#views+1]=id end
+local cur=1
+for i,v in ipairs(views)do if v==view then cur=i end end
+local function lab(v)return v=="local"and L"Local"or DC.label(v)end
+local function go(i)state.bayView=views[(i-1)%#views+1]end
+local count=cur.."/"..#views
+local left,right=2,W-1
+if#views>1 then
+button(2,5,"<",T.panel,T.text,function()go(cur-1)end)
+button(W-2,5,">",T.panel,T.text,function()go(cur+1)end)
+text(W-#count-3,5,count,T.dim)
+left,right=6,W-#count-5
 end
-for _,id in ipairs(ids)do
-local lab=DC.label(id)
-if x+#lab+2>W then break end
-local act=view==id
-x=x+button(x,5,lab,act and T.accent or T.panel,act and T.bg or(DC.online(id)and T.text or T.bad),
-function()state.bayView=id end)+1
+local first=1
+local function span(a,b)
+local n=0
+for i=a,b do n=n+#lab(views[i])+3 end
+return n
+end
+while first<cur and left+span(first,cur)>right do first=first+1 end
+local x=left
+for i=first,#views do
+local v=views[i]
+local l=cut(lab(v),right-left-2)
+if x+#l+2>right then break end
+local act=v==view
+local fg=act and T.bg or((v=="local"or DC.online(v))and T.text or T.bad)
+x=x+button(x,5,l,act and T.accent or T.panel,fg,function()state.bayView=v end)+1
 end
 withSub(1,7,W,H-7,function()
 if view=="local"then return basePage(d)end

@@ -1,6 +1,10 @@
 -- Ventura RSTools : rstools/central.lua (version compacte, code commente dans source/)
 DC={}
 CHANGELOG={
+{"4.5.1",{
+"Ecrans secondaires : l'interface complete sur d'autres moniteurs, avec leur propre navigation",
+"Baies : fleches pour passer d'un controleur de baies a l'autre",
+}},
 {"4.5.0",{
 "Data center : le central n'a plus besoin de RS Bridge, le stock est lu par les controleurs de baies",
 "Chaque controleur avec un RS Bridge envoie son stock, le central additionne les reseaux",
@@ -1468,10 +1472,10 @@ end)()
 ;(function()
 local TOOLBAR={"haut","bas","gauche","droite"}
 local TOOLBAR_NAMES={haut=L"En haut",bas=L"En bas",gauche=L"A gauche",droite=L"A droite"}
-local WIDGET_TYPES={"aucun","mosaique","baies","stockage","energie","fluides","prevision","item",
+local WIDGET_TYPES={"aucun","ecran","mosaique","baies","stockage","energie","fluides","prevision","item",
 "epingles","tendances","alertes","crafts","journal","horloge","resume"}
 local WIDGET_NAMES={
-aucun=L"Aucun",baies=L"Baies de disques",stockage=L"Stockage",energie=L"Energie",
+aucun=L"Aucun",ecran=L"Ecran secondaire (interface)",baies=L"Baies de disques",stockage=L"Stockage",energie=L"Energie",
 item=L"Item suivi",alertes=L"Alertes",crafts=L"Crafts en cours",journal=L"Journal",resume=L"Resume",
 mosaique=L"Mosaique",horloge=L"Horloge",tendances=L"Tendances",epingles=L"Epingles (liste)",
 fluides=L"Fluides",prevision=L"Prevision de remplissage",
@@ -1490,11 +1494,19 @@ local function save()
 tbl[n]=cfg
 if onSave then onSave()else pcall(saveStore);setupWidgets()end
 end
+local types=WIDGET_TYPES
+if tbl~=store.widgets then
+types={}
+for _,t in ipairs(WIDGET_TYPES)do if t~="ecran"then types[#types+1]=t end end
+end
 local list={
 {h=n},
-{l=L"Affichage",t="choice",c=WIDGET_TYPES,f=function(v)return WIDGET_NAMES[v]or v end,
+{l=L"Affichage",t="choice",c=types,f=function(v)return WIDGET_NAMES[v]or v end,
 get=function()return cfg.type end,set=function(v)cfg.type=v;save()end},
 }
+if cfg.type=="ecran"then
+list[#list+1]={info=L"Interface complete, navigation independante de l'ecran principal."}
+end
 if cfg.type~="aucun"then
 list[#list+1]={l=L"Taille du texte",t="choice",c={0.5,1,1.5,2,3},
 get=function()return cfg.scale or 0.5 end,set=function(v)cfg.scale=v;save()end}
@@ -2525,11 +2537,18 @@ x=x+w+1
 end
 end
 end)()
-function render()
+function render(sub)
 buttons={}
 OX,OY=0,0
 win.setVisible(false)
 win.setBackgroundColor(T.bg);win.clear()
+if sub and(W<MIN_W or H<MIN_H)then
+text(1,1,L"Ecran trop petit",T.bad)
+text(1,2,L"Reduis la taille",T.text)
+text(1,3,L"du texte",T.text)
+win.setVisible(true)
+return
+end
 if W<MIN_W or H<MIN_H then
 text(1,1,L"Ecran trop petit",T.bad)
 text(1,2,L"Toucher pour",T.text)
@@ -2580,7 +2599,7 @@ if not ok2 then state.popup=nil;notify(tostring(err2))end
 end
 pcall(drawToasts)
 win.setVisible(true)
-renderWidgets(d)
+if not sub then renderWidgets(d)end
 end
 function pruneCaches()
 local c,t=os.clock(),now()
@@ -2824,9 +2843,39 @@ end
 end
 end
 end
+VIEW_KEYS={"tab","popup","input","search","scroll","sort","filter","kb","kbUpper","stick","mosZoom",
+"bayView","dcSel","logFilter","autoView","setCat","shownTab"}
+screens={}
+function isScreen(n)
+local c=store.widgets[n]
+return c and c.type=="ecran"and widgets[n]~=nil
+end
+function inScreen(n,fn)
+local w=widgets[n]
+local v=screens[n]
+if not v then
+v={tab="home",scroll={},search="",sort="count",stick={},kb=false,kbUpper=false,
+logFilter="all",autoView="min",setCat="apparence"}
+screens[n]=v
+end
+local sWin,sW,sH,sB=win,W,H,buttons
+win,W,H,buttons=w.win,w.W,w.H,w.buttons or{}
+for _,k in ipairs(VIEW_KEYS)do state[k],v[k]=v[k],state[k]end
+local ok,err=pcall(fn)
+for _,k in ipairs(VIEW_KEYS)do state[k],v[k]=v[k],state[k]end
+w.buttons=buttons
+win,W,H,buttons=sWin,sW,sH,sB
+if not ok then notify(n.." : "..tostring(err))end
+end
+function renderScreens()
+for n in pairs(widgets)do
+if isScreen(n)then inScreen(n,function()render(true)end)end
+end
+end
 function uiLoop()
 checkScreens()
 render()
+renderScreens()
 state.lastClock=os.date("%H:%M")
 local tick=os.startTimer(1)
 while not state.restart do
@@ -2849,6 +2898,15 @@ local b=buttons[i]
 if x>=b.x1 and x<=b.x2 and y>=b.y1 and y<=b.y2 then sfx("click");b.fn();break end
 end
 dirty=true
+elseif e[1]=="monitor_touch"and isScreen(e[2])then
+local x,y=e[3],e[4]
+inScreen(e[2],function()
+for i=#buttons,1,-1 do
+local b=buttons[i]
+if x>=b.x1 and x<=b.x2 and y>=b.y1 and y<=b.y2 then sfx("click");b.fn();break end
+end
+end)
+dirty=true
 elseif e[1]=="char"or e[1]=="paste"or e[1]=="key"then
 handleKey(e)
 dirty=true
@@ -2864,6 +2922,7 @@ end
 if dirty or state.forceRender then
 state.forceRender=false
 render()
+renderScreens()
 state.toastsShown=#state.toasts>0
 state.msgShown=state.msg~=nil and os.clock()-state.msgTime<6
 state.msgDrawn=state.msgTime

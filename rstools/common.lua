@@ -21,7 +21,7 @@ end)
 if ok and type(t)=="table"then EN=t end
 return function(s)return EN[s]or s end
 end)()
-VERSION="4.5.0"
+VERSION="4.5.1"
 CFG={
 dataFile="rstools_data.txt",
 configFile="rstools_config.txt",

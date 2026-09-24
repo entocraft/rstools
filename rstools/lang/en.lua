@@ -1,5 +1,11 @@
 -- Ventura RSTools : dictionnaire anglais (charge seulement si la langue est l'anglais)
 return {
+    ["Ecrans secondaires : l'interface complete sur d'autres moniteurs, avec leur propre navigation"] = "Secondary screens: the full interface on other monitors, with their own navigation",
+    ["Baies : fleches pour passer d'un controleur de baies a l'autre"] = "Bays: arrows to switch between bay controllers",
+    ["Ecran secondaire (interface)"] = "Secondary screen (interface)",
+    ["Interface complete, navigation independante de l'ecran principal."] = "Full interface, navigation independent from the main screen.",
+    ["Reduis la taille"] = "Lower the text",
+    ["du texte"] = "size",
     ["Data center : le central n'a plus besoin de RS Bridge, le stock est lu par les controleurs de baies"] = "Data center: the central computer no longer needs an RS Bridge, stock is read by the bay controllers",
     ["Chaque controleur avec un RS Bridge envoie son stock, le central additionne les reseaux"] = "Each controller with an RS Bridge sends its stock, the central computer adds up the networks",
     ["Crafts et evacuations envoyes au controleur qui gere l'item"] = "Crafts and removals are sent to the controller that holds the item",
